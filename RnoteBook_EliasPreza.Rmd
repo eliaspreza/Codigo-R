@@ -1,0 +1,505 @@
+---
+title: 'RNotebook: Resolución Prueba DGA'
+output:
+  html_document:
+    toc: yes
+    toc_depth: '4'
+    df_print: paged
+  html_notebook:
+    toc: yes
+    theme: flatly
+    highlight: tango
+    toc_depth: 4
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+---
+<hr/>
+**Resumen:**
+El presente código fue desarrollado por **Elias Preza** para optar a la plaza de Senior Data Scientist de la Dirección General de Aduana **DGA**, en su contenido se resuelve sintaxis para el ejercicio de la **parte: 1 de Manejo de Datos** y la para la **parte 2: la Construcción de un Modelo de Machine Learning**. 
+
+![](Foto.jpg)
+
+
+[Link hacia perfil de Linkedin](https://www.linkedin.com/in/elias-preza-316531b3/)
+
+<hr/>
+# Preparación de Librerias
+```{r}
+library(tidyverse)
+library(readr)
+library(sjmisc)
+
+```
+
+# Preparación de bases de datos
+## Data Set: BX_Books
+```{r echo=TRUE, message=TRUE, warning=FALSE}
+
+BX_Books<- read_delim("BX-Books.csv", ";", 
+                       escape_double = FALSE, trim_ws = TRUE)
+dplyr::glimpse(BX_Books)
+
+head(BX_Books,5)  
+
+```
+
+## Data Set: BX_Book_Ratings
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+BX_Book_Ratings<-read_delim("BX-Book-Ratings.csv", ";", 
+                            escape_double = FALSE, trim_ws = TRUE)
+
+dplyr::glimpse(BX_Book_Ratings)
+
+head(BX_Book_Ratings,5)
+```
+
+## Data Set: BX_Users
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+BX_Users<-read_delim("BX-Users.csv", ";", 
+                            escape_double = FALSE, trim_ws = TRUE)
+
+dplyr::glimpse(BX_Users)
+
+head(BX_Users,5)
+```
+
+# PARTE 1: Manejo de Datos
+
+Como sabrás, en el trabajo de un científico de datos es necesario saber manejar datos de fuentes diversas para crear datasets para el entrenamiento de modelos de aprendizaje de máquina. 
+En esta parte de la prueba descargaras el dataset: Book-Crossing Dataset. Un dataset para la creación de un sistema de recomendación de libros recopilado por Cai-Nicolas Ziegler del Instituto para la Informática de la Universidad de Freiburg.  Podés descargar el dataset como un Zip aquí. 
+
+Puedes usar R, Python o cualquier lenguaje de programación de tu preferencia para responder las siguientes preguntas, te pedimos que nos adjuntes el código que usaste para resolverlas. 
+
+## Literal a
+
+Te pedimos que agregues los archivos en la carpeta descargada para formar un dataset que pueda ser usado para entrenar un modelo de agrupación como KNN o un sistema de recomendaciones.
+
+**<<En este agregado se fusionaron los tres Data-Set para contar con todas las variables claves que pueden servir para un análisis más profundo y aplicar un modelo de clasificación o de recomendación, porque puede perfilarse al usuario desde su edad, lugar de residencia, cantidad o frecuencia de lectura, su preferencia de libros, autores e editoriales; con transformaciones en variables cualitativas ya estandarizadas a númericas se podría factiblemente correr modelos>>.**
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+base1<-left_join(BX_Book_Ratings,BX_Books,by=c("ISBN"="ISBN"))
+
+agregado<-left_join(base1,BX_Users,by=c("User-ID"="User-ID"))
+
+dplyr::glimpse(agregado)
+
+head(agregado,10)
+```
+## Literal b
+
+Ahora notaras que la ubicación del usuario está dada por ciudad, estado o región y país. Crea columnas separadas que contengan el país, ciudad y región de cada usuario. 
+
+**<< Se preparo una desconcatenación de la columna de Location posteriormente se procedió a extraer y renombrar unicamente a las variables de interes >>.**
+
+```{r}
+ubicacion <- within(data=BX_Users, Location<-data.frame
+                     (do.call('rbind',strsplit(as.character(Location),",",fixed=TRUE))))
+
+ubicacion<-ubicacion%>% 
+    dplyr::mutate(ciudad=ubicacion$Location$X1,región=ubicacion$Location$X2,país=ubicacion$Location$X3,edad=ubicacion$Age) %>% 
+    dplyr::select(`User-ID`,país,región,ciudad,edad)
+
+head(ubicacion,5)
+```
+## Literal c
+¿Cuáles son los libros con más raitings?
+
+**<< Se desarrollo una agregación por ISBN para obtener únicos ISBN y obtener las sumas de los raitings por libro, luego se fusiono con la de libros para pegar los detalles como nombre, autor editorial, etc >>.**
+```{r}
+frq(agregado$`Book-Rating`) #--Solo para verificar la frecuencia del raiting
+
+#---agregndo los raiting de la base BX_Book_Ratings para fusionarla con BX_Books
+
+dplyr::glimpse(BX_Book_Ratings)
+
+AgregadoRainting<-BX_Book_Ratings %>%
+  dplyr::select(ISBN,`Book-Rating`)%>%
+  dplyr::group_by(ISBN)%>%
+  dplyr::summarise(RaitingsLibro=sum(`Book-Rating`))
+
+
+#----fusionando la base para conocer el nombre de los libros con mayor raitings
+
+base2<-left_join(AgregadoRainting,BX_Books,by=c("ISBN"="ISBN"))
+
+dplyr::glimpse(base2)
+
+librosMasRaitings<-base2 %>% 
+  dplyr::arrange(desc(RaitingsLibro))
+
+head(librosMasRaitings,10)
+```
+## Literal d
+¿Cuál es el top 10 de libros con mejores ratings?
+
+**<< Se retoma la base anterior de los raitings pero se ejecutaron los filtros con los mayores raitings, dejando los 10 primeros libros, se eliminaron los NA para la limpieza del top 10 >>.**
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+dplyr::glimpse(librosMasRaitings)
+librosMasRaitingsNoNA<-na.omit(librosMasRaitings)#---se omite los NA para mayor limpieza
+
+librosTop10Raitings<-librosMasRaitingsNoNA%>%
+  dplyr::select(`Book-Title`,`Book-Author`,Publisher,RaitingsLibro)%>%
+  dplyr::arrange(desc(RaitingsLibro))%>% 
+  dplyr::filter(RaitingsLibro>2062)
+
+dplyr::glimpse(librosTop10Raitings)
+
+librosTop10Raitings<-librosTop10Raitings %>% 
+  dplyr::rename(Libro=`Book-Title`,Autor=`Book-Author`,Editorial=Publisher,Raiting=RaitingsLibro)
+
+librosTop10Raitings
+```
+
+## Literal e
+¿Cómo diseñarías el sistema de recomendación? (No se necesita programarlo, puedes explicar conceptualmente el modelo/sistema que implementarías).
+
+**Prácticamente se propone un proceso normal de corrida de modelo, resumiendo algunos subprocesos, los pasos generales puden englobarse de la forma siguiente:**
+
+1- Extracción e importación de las diferentes fuentes de datos del data set Book-Crossing <br/>
+2- Luego este debe ser transformado, pasando por el proceso de limpieza y consistencia <br/>
+3- Al tener preparada, se transforma para que algunas variables puedan comprender una forma cuantitativa para someterse a los modelos multivariantes que exige machine learning.<br/>
+4- EL modelo propuesto es el de componentes principales PCA, para extraer las ponderaciones o pesos de la primera componete para construir un indicador o indice que permita desarrollar una clasificación de usarios y mejorar la campaña de recomendación.<br/>
+5- Se monta el algoritmo a los sistemas y se entrena el modelo hasta que su presición logre tasas cercanas o mayores al 90%.<br/>
+6- Luego en plena producción se verifica constantemente para que el proceso afine y mejore totalmente, hasta que el algoritmo alcance su máximo desarrollo y predicción en modo de producción.
+
+
+**El esquema del modelo conceptual muy general se observa en la siguiente figura:**
+<hr/>
+![](ModeloParte1.jpg)
+
+<hr/>
+# PARTE 2: Construcción de un Modelo Machine Learning
+
+Be-A-Host.com es un Marketplace bilateral que permite crear conexiones entre huéspedes y hospedajes. La plataforma funciona de la siguiente manera: un huésped encuentra un alojamiento disponible (listing) que le gusta y envía una solicitud al dueño del alojamiento. Hay dos formas de solicitar alojamiento, una es la de ‘reserva’ (‘book_it’) y otra la de ‘reserva instantanea’ (instant_book) que automáticamente hace la reservación. Al recibir la solicitud de ‘reserva’ el alojamiento puede decidir si aceptar o no la reservación.
+
+Los alojamientos pueden rechazar un huésped por variar razones. Algunas pueden ser logísticas: las fechas no funcionan o personales: los huéspedes pueden ser riesgosos para el alojamiento. El objetivo de esta prueba es maximizar la probabilidad de los huéspedes de ser aceptados en el alojamiento que solicitan. 
+
+## Preguntas
+
+Con los archivos adjuntos en el correo que recibió responda las siguientes preguntas:
+
+1-Be-A-Host necesita comprender por qué razón un huésped logra tener una solicitud de reserva exitosa y cuales son los factores que hacen que un huésped tenga mayores probabilidades de ser aceptado por los alojamientos. Construye un modelo que permita comprender la tasa de aceptación de solicitudes. Basado en este modelo, ¿qué adición podrías recomendar hacer al website para aumentar la probabilidad de aceptación de los huéspedes?.<br/>
+2-Como un experimento Be-A-Host ha agregado un nuevo feature que obliga a los huéspedes a enviar un mensaje de no menos de 140 caracteres explicando por qué les interesa ese alojamiento en particular, las asignaciones están en el archivo assignments.csv, se corrió un experimento en que la mitad de los huéspedes se pusieron en un control. ¿Debería lanzarse ese cambio a la plataforma para todos los clientes?
+
+## Desarrollo del Modelo
+### Preparación de Librerias
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(lubridate)
+library(cluster)
+library(mclust)
+library(pheatmap)
+library(clustertend)
+library(eclust)
+library(NbClust)
+library(pheatmap)
+library(d3heatmap)
+library(rattle)
+library(factoextra)
+library(dendextend)
+library(igraph)
+library(clValid)
+library(nortest)
+library(magrittr)
+library(ggpubr)
+```
+### Preparación de Base de Datos
+#### Base Contacts
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#--contacts
+Contacts<- read_delim("contacts.csv", ",", 
+                      escape_double = FALSE, trim_ws = TRUE)
+
+dplyr::glimpse(Contacts)
+
+head(Contacts,10)
+```
+#### Base Assigments
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#--assignments
+
+assignments<- read_delim("assignments.csv", ",", 
+                      escape_double = FALSE, trim_ws = TRUE)
+
+dplyr::glimpse(assignments)
+
+head(assignments,5)
+```
+
+### Fusión de bases
+
+Se desarrolla la fusión de la base de **contacts y assigments** para empezar a prepararla y transformarla con todas sus variables, con la finalidad de empezar a desarrollar el modelo posteriormente a su transformación, además se debe saber las caracteristicas del grupo de control.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#---Se fusionan las bases para el análisis para conocer el grupo de control
+
+DB_Modelo<-left_join(Contacts,assignments,by=c("id_guest_anon"="id_user_anon"))
+
+head(DB_Modelo,5)
+
+```
+### Preparación y Transformación de la base
+Para aplicar el modelo, la base de datos deben de cumplir con un estandard de limpieza y transformación, como el modelo que se pretende aplicar es el de Clúster Jerárquico, la base debe de ser transformados a terminos númericos.
+
+#### Se ejecuta un sub-set
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#----Se realiza un sut set para ir determinando la base
+
+DB_Modelo_sub<-DB_Modelo%>% 
+  dplyr::select(id_guest_anon,ts_interaction_first,ts_accepted_at_first,ds_checkin_first,
+                ds_checkout_first,m_guests_first,m_interactions,
+                m_first_message_length_in_characters,dim_contact_channel_first,dim_room_type,
+                dim_total_reviews,dim_person_capacity,ab)
+
+dplyr::glimpse(DB_Modelo_sub)
+
+head(DB_Modelo_sub,5)
+
+```
+#### Se ejecutan las transformaciones y recodificaciones
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#---Transformaciones de variables
+
+#---Renombrando
+DB_Modelo_sub<-DB_Modelo_sub%>% 
+  dplyr::rename(IdUser=id_guest_anon,PrimeraConsulta=ts_interaction_first,AceptaConsulta=ts_accepted_at_first,SelloEntrada=ds_checkin_first,
+                SelloSalida=ds_checkout_first,NumeroInvitados=m_guests_first,NumeroMensajes=m_interactions,
+                NumeroCaracteres=m_first_message_length_in_characters,TipoCanal=dim_contact_channel_first,TipoHabitacion=dim_room_type,
+                TotalRevisiones=dim_total_reviews,CapacidadPersonas=dim_person_capacity,Control=ab)
+
+dplyr::glimpse(DB_Modelo_sub)
+
+
+#-------Transformando
+
+#---Verificando algunas frecuencias para las transformaciones
+frq(DB_Modelo_sub$TipoHabitacion)
+frq(DB_Modelo_sub$TipoCanal)
+frq(DB_Modelo_sub$Control)
+
+#---Tranasformaciones
+DB_Transform<-DB_Modelo_sub%>%
+  dplyr::mutate(TiempoEspera=(as.numeric(difftime(AceptaConsulta, PrimeraConsulta), units="secs")))%>% 
+  dplyr::mutate(TiempoSello=(as.numeric(difftime(SelloSalida, SelloEntrada), units="days")))%>% 
+  dplyr::mutate(Canal=(if_else(TipoCanal=="instant_booked",1,2))) %>%       
+  dplyr::mutate(Habitacion=(if_else(TipoHabitacion=="Entire home/apt",1,
+                                    if_else(TipoHabitacion=="Private room",2,if_else(TipoHabitacion=="Shared room",3,4 ))))) %>% 
+  dplyr::mutate(GrupoControl=if_else(Control=="control",1, 2),corr=seq(1,25522,by=1))
+   
+head(DB_Transform,5)
+```
+
+### Seleccionando las variables que entraran al modelo
+```{r}
+#---Seleccionando las variables que entraran al modelo
+dplyr::glimpse(DB_Transform)
+
+bm<-DB_Transform %>% 
+  dplyr::select(TiempoEspera,TiempoSello,NumeroInvitados,NumeroMensajes,NumeroCaracteres,Canal,Habitacion,
+                TotalRevisiones,CapacidadPersonas,corr)
+
+dplyr::glimpse(bm)
+
+head(bm,5)
+```
+### Se calcula una muestra representativa para correr el modelo que también será de entrenamiento
+
+```{r}
+#----Se sacará una muestra representativa de la base que a la vez servirá para entrenamiento
+#----la muestra se reduce por la eliminación de los NA de hecho por eso se sobremuestrea a 7000
+
+bm_muestra<-bm %>%
+  sample_n(size=7000,replace=FALSE)
+
+bm_muestra<-na.omit(bm_muestra)
+
+bm<-bm_muestra
+
+dplyr::glimpse(bm)
+
+head(bm,5)
+```
+### Desarrollo del modelo de Clúster Jerárquico
+Al modelo entrarán 10 variables transformadas,algunas se han recodificadas y se han convertido a cuantitativas y se eliminaron los NA. para que las pruebas estadísticas del clúster no tengan problema, el set de entrenamiento o muestra es de 4,564, una muestra representativa de los 25 mil que resultaron de las fusiones.
+
+#### Escalando la base
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#----Modelo de cluster jerarquico  
+#---Escalando la base bm (normalizando o tipificando) 
+
+bm<-scale(bm)
+
+head(bm,5)
+```
+#### Definiendo el número óptimo de clústers
+
+Las pruebas gráficas por el método de **ELBOW y el método de AVERAGE SILHOUETTE**, indican entre 4 y 3, clúster, decidí determinarlo en 3 clústers porque la prueba de calidad del clúster, que es el próximo ítems indica mejor establecimiento para 3 grupos.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#--------Número optimo de cluster---Método: ELBOW
+fviz_nbclust(x = bm, FUNcluster = kmeans, method = "wss") +
+  labs(title = "Número óptimo de clusters")
+
+#--------Número optimo de cluster---Método: AVERAGE SILHOUETTE METHOD
+fviz_nbclust(x = bm, FUNcluster = kmeans, method = "silhouette") +
+  labs(title = "Número óptimo de clusters")
+```
+
+#### Calidad de los grupos del cluster
+Tal como se comento en la sección anterior la calidad del clúster indica mejor agrupamiento para 3 grupos.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#------Gráfico de Silhouette width
+km_clusters <- eclust(x = bm, FUNcluster = "kmeans", k = 3, seed = 123,
+                      hc_metric = "euclidean", nstart = 50, graph = FALSE)
+fviz_silhouette(sil.obj = km_clusters, print.summary = TRUE, palette = "jco",
+                ggtheme = theme_classic())
+```
+
+#### Visualización gráfica de los grupos
+Se observa a continuación la representación gráfica de los clústers conformados:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#----Gráfica del cluster
+p <- fviz_cluster(object = km_clusters, geom = "point", ellipse.type = "norm",
+                  palette = "jco")
+p + geom_point(data = p$data[c(1, 3000),], colour = "firebrick", size = 2.5) +
+  theme_bw() + theme(legend.position = "bottom")
+
+
+```
+#### Dendograma
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#----Dendograma
+hc_completo <- bm %>% scale() %>% dist(method = "euclidean") %>% hclust(method = "ward.D")
+
+plot(hc_completo, main="Dendograma de la clasificación de los usuarios",xlab="Usuarios")
+```
+#### Heatmap
+ se construyé el heatmap:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#------heatmap
+heatmap(x = bm, scale = "none", distfun = function(x){dist(x, method = "euclidean")}, 
+        hclustfun = function(x){hclust(x, method = "ward.D")}, cexRow = 0.7)
+```
+
+#### Preparando la base para el análisis 
+
+En este apartado se fusionan los cluster con la base de entrenamiento o muestra para desarrollar los análisis de recomendación para la respuestas de los númerales 1 y 2
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#-----------Preparando la base
+
+clusters <- cutree(tree = hc_completo, k = 3)
+
+clusters
+
+clusterBD<-cbind(clusters,bm_muestra)
+
+#--join para agregar la columna control
+
+SubsetBD_Transf<- DB_Transform %>% 
+  dplyr::select(GrupoControl,corr)
+
+
+dplyr::glimpse(clusterBD)
+dplyr::glimpse(SubsetBD_Transf)
+
+clusterBD<-left_join(clusterBD,SubsetBD_Transf,by=c("corr"="corr"))
+
+
+dplyr::glimpse(clusterBD)
+
+
+frq(clusterBD$clusters)
+
+```
+## Analítica del modelo de Clúster Jerárquico construido
+En esta sección se analizará los cruces de variables de la base **clusterBD** para tener elementos técnicos de respuesta a los numerales 1 y 2. 
+
+### Respuesta al numeral 1
+
+Con la interpretación muy general de los análisis de los resultados, que se obtuvieron con el modelo, podemos mencionar que la empresa Be-A-Host, tiene 3 nichos de mercado que puede atender y especializarse para cada uno de ellos, el primero representado por el clúster 1 encaminado a familias o grupos numerosos que prefieren casas completas y que muy probablemente pasen sus vacaciones, la interacción es un poco considerable, pero los tiempos de respuesta son los más altos en comparación al resto de clúster, dicho nicho representa el 60% de la cuota de mercado y por demandar mucho más espacio en número de personas pueden ser los de mayor capacidad adquisitiva; para el segundo nicho de mercado el clúster 2 una ponderación del 21%, prefieren el canal de reserva no inmediata similar al 1, se puede intuir que es para aquellas personas que viajan por trabajo o estudios, su demanda de personas es mucho menor al resto y prefieren predominantemente habitaciones privadas y pocas veces compartidas, su interacción es baja, los tiempos de respuesta son medios; el nicho o grupo de clúster 3, representa el 18.73% del mercado de Be-A-Host y es el que prefiere el canal de forma de reserva instantánea, sin embargo, este grupo es familiar, se podría decir o afirmar que demanda menos personas que el clúster 1, se componen muy probablemente por familias promedio, se reveló que prefieren bastantes interacción en las revisiones de los detalles con los huéspedes, sin embargo, lo descubierto que es muy interesante es que es el clúster con el mejor y excelente tiempo de respuesta entre ellos y el huésped, eso hace la diferencia para aplicar a un canal específico de reserva, por eso en este grupo predomina el instant_book.
+
+En cuanto a que se puede recomendar de mejora al Website del sitio es que los tiempos de respuesta entre huéspedes y usuarios es clave para lograr reservas instantáneas, y que debe de establecerse una diferenciación de los nichos de mercados tal como lo revelan los clústeres.
+
+
+
+#### Probabilidad de las reservas
+Se evidencia que los usuarios del clúster 3 tienen una alta probabilidad del 98% de reservar de forma instantánea **<< instant_book >>** pero solo representan el 18.73% del mercado de Be-A-Host, otro insight de los datos que se observa es que los usuarios del clúster 1 que representa el 60.21% del mercado tienen una probabilidad del 97% de casi ocupar el canal de alojamiento de reserva **<< book_it >>**  y el clúster 2 tiende en un 100% a reservar en la modalidad de  reserva book_it, también y representa el 21% del mercado para Be-A-Host. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+cT<-clusterBD %>% 
+  dplyr::group_by(clusters,Canal) %>% 
+  dplyr::summarise(Reservas=n()) %>%  
+  dplyr::mutate(TotalReservas=sum(Reservas),ProbabilidadReserva=(Reservas/TotalReservas))
+cT
+```
+
+#### Perfil general de los grupos de clústers
+
+##### Clúster 1
+El perfil de los usuarios que pertenecen al clúster 1 de forma general se resume en: canal preferido es el book_it, presentan una media en los tiempos de espera de 5,2171 segundos < menos de un día > y un máximo de 31,534,671 < un año > , en los tiempos de sello una media 4.93 días hasta un máximo de 145 días de espera, están por una media de 2.62 invitados y un máximo de 14, en el tipo de habitación prefieren las casas completas, una media de interacción de 9.14 mensajes y un máximo de 69, una media de 59 revisiones, prefieren una media de oferta de capacidad de personas por 4.29 y un máximo de 16, y un máximo de 2 reservas por gestión.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+c1<-clusterBD %>% 
+  dplyr::group_by(clusters,Canal,TiempoEspera,TiempoSello,NumeroInvitados,
+                  Habitacion,NumeroMensajes,TotalRevisiones,CapacidadPersonas)%>%
+  dplyr::filter(clusters==1)%>%
+  dplyr::summarise(Reservas=n()) %>%  
+  dplyr::mutate(TotalReservas=sum(Reservas),ProbabilidadReserva=(Reservas/TotalReservas))
+c1
+
+summary(c1)
+
+```
+
+##### Clúster 2
+
+El perfil de los usuarios que pertenecen al clúster 2 de forma general se resume en: canal preferido es el book_it, presentan una media en los tiempos de espera de 25,292 segundos < menos de un día > y un máximo de 71,2485 < casí un día > , en los tiempos de sello una media 3.326 días hasta un máximo de 17 días de espera, están por una media de 1.562 invitados y un máximo de 5, en el tipo de habitación prefieren las habitaciones reservadas y muy poco las compartidas, una media de interacción de 7.753 mensajes y un máximo de 17.000, una media de 51.47 revisiones, prefieren una media de oferta de capacidad de personas por 2.36 y un máximo de 9.00, y un máximo de 2 reservas por gestión. 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+c2<-clusterBD %>% 
+  dplyr::group_by(clusters,Canal,TiempoEspera,TiempoSello,NumeroInvitados,
+                  Habitacion,NumeroMensajes,TotalRevisiones,CapacidadPersonas)%>%
+  dplyr::filter(clusters==2)%>%
+  dplyr::summarise(Reservas=n()) %>%  
+  dplyr::mutate(TotalReservas=sum(Reservas),ProbabilidadReserva=(Reservas/TotalReservas))
+c2
+
+summary(c2)
+```
+
+##### Clúster 3
+
+El perfil de los usuarios que pertenecen al clúster 3 de forma general se resume en: canal preferido es el instant book , presentan una media en los tiempos de espera de 2,392 segundos < minutos > y un máximo de 1,484,214 < un día >, en los tiempos de sello una media 3.083 días hasta un máximo de 7.00 días de espera, están por una media de 2.153 invitados y un máximo de 6.000, en el tipo de habitación prefieren es la casa completa, una media de interacción de 7.698 mensajes y un máximo de 28.000, una media de 87.12 revisiones, prefieren una media de oferta de capacidad de personas por 3.484 y un máximo de 11.000, y un máximo de 3 reservas por gestión.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+c3<-clusterBD %>% 
+  dplyr::group_by(clusters,Canal,TiempoEspera,TiempoSello,NumeroInvitados,
+                  Habitacion,NumeroMensajes,TotalRevisiones,CapacidadPersonas)%>%
+  dplyr::filter(clusters==3)%>%
+  dplyr::summarise(Reservas=n()) %>%  
+  dplyr::mutate(TotalReservas=sum(Reservas),ProbabilidadReserva=(Reservas/TotalReservas))
+c3
+
+summary(c3)
+```
+
+### Respuesta al numeral 2
+#### Grupo de control
+
+Se observa que el experimento del grupo de control, < los que fueron sometidos a 140 caracteres > , y que en la base son los que aparecen con el código 1, no muestra cambios significativos, al contrario la probabilidad de reserva se ve inferior en comparación a los que no están en control del experimento, la recomendación es no lanzar el cambio a toda la plataforma.
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+Control<-clusterBD %>% 
+  dplyr::group_by(clusters,Canal,GrupoControl) %>% 
+  dplyr::summarise(Reservas=n()) %>%  
+  dplyr::mutate(TotalReservas=sum(Reservas),ProbabilidadReserva=(Reservas/TotalReservas))
+Control
+```
+
+
+
+
