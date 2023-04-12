@@ -1,0 +1,63 @@
+Mi proyecto R
+=============
+
+Introducción
+------------
+
+Este es un proyecto de ejemplo que muestra cómo utilizar código R en la documentación de Sphinx.
+
+Instalación
+-----------
+
+Para utilizar este proyecto, necesitarás tener R instalado en tu sistema. Puedes descargarlo desde la página oficial de R.
+
+Uso
+---
+
+Para utilizar el código R en este proyecto, simplemente abre el archivo `mi_codigo.R` y ejecútalo en tu entorno R.
+
+Ejemplo de código
+-----------------
+
+Aquí tienes un ejemplo de código R que puedes utilizar en este proyecto:
+
+.. code-block:: R
+
+    # Esto es un comentario
+    x <- c(1, 2, 3)
+    y <- x * 2
+    plot(x, y)
+Este es solo un ejemplo básico de cómo podrías estructurar tu documento. Puedes personalizarlo y agregar más secciones según tus necesidades.
+
+¿Hay algo más en lo que pueda ayudarte?
+
+Mensaje recibido. Si deseas jerarquizar un documento con código R en Read the Docs, puedes hacerlo utilizando una herramienta de documentación como Sphinx. Sphinx te permite escribir tu documentación en formato reStructuredText y luego compilarla en diferentes formatos, incluyendo HTML para su visualización en línea. Aquí tienes un ejemplo de cómo podrías estructurar un documento con código R utilizando Sphinx y reStructuredText: ``` Mi proyecto R ============= Introducción ------------ Este es un proyecto de ejemplo que muestra cómo utilizar código R en la documentación de Sphinx. Instalación ----------- Para utilizar este proyecto, necesitarás tener R instalado en tu sistema. Puedes descargarlo desde la página oficial de R. Uso --- Para utilizar el código R en este proyecto, simplemente abre el archivo `mi_codigo.R` y ejecútalo en tu entorno R. Ejemplo de código ----------------- Aquí tienes un ejemplo de código R que puedes utilizar en este proyecto: .. code-block:: R # Esto es un comentario x <- c(1, 2, 3) y <- x * 2 plot(x, y) ``` Este es solo un ejemplo básico de cómo podrías estructurar tu documento. Puedes personalizarlo y agregar más secciones según tus necesidades. ¿Hay algo más en lo que pueda ayudarte?
+2
+de
+20
+
+Me gusta
+No me gusta
+CompartirMás
+ahora en formato marckdown para montarlo en read to docs
+Mensaje enviado. ahora en formato marckdown para montarlo en read to docs
+Si deseas utilizar Markdown para escribir tu documentación en Read the Docs, puedes hacerlo utilizando una herramienta de documentación como MkDocs. MkDocs te permite escribir tu documentación en formato Markdown y luego compilarla en HTML para su visualización en línea.
+
+Aquí tienes un ejemplo de cómo podrías estructurar un documento con código R utilizando MkDocs y Markdown:
+
+# Mi proyecto R
+
+## Introducción
+
+Este es un proyecto de ejemplo que muestra cómo utilizar código R en la documentación de MkDocs.
+
+## Instalación
+
+Para utilizar este proyecto, necesitarás tener R instalado en tu sistema. Puedes descargarlo desde la página oficial de R.
+
+##
+Mensaje recibido.
+3
+de
+20
+
